@@ -1,24 +1,11 @@
 # 🧠 Topic-Following
 
-**Topic-Following** is a simple Streamlit interface for creating *distractors* — short deviations from system instructions — to evaluate topic adherence in large language models (LLMs).  
+Our **Topic-Following** project follows the "CantTalkAboutThis: Aligning Language Models to Stay on Topic in Dialogues" paper.
 This project was developed for the **NLP/DL course**.
 
 ---
 
-## 🚀 Features
-
-- Upload domain-specific datasets (`real_estate`, `insurance`, `travel`)
-- Generate a **random scenario** consisting of:
-  - Domain
-  - Scenario
-  - System instruction
-  - Full conversation history
-- Write and save a **distractor** for the scenario
-- Automatically store distractors in a structured CSV format under `data/distractors/`
-
----
-
-## 🧩 Directory Structure
+## 🧩 Current Directory Structure
 
 
 topic-following/
