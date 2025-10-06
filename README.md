@@ -35,19 +35,19 @@ Install all required Python packages using:
 pip install -r requirements.txt
 ```
 
-**b. Generate the domain-specific datasets by running:
+**b. Generate the domain-specific datasets by running**
 ```bash
 python src/get_csv.py
 ```
 
-**c. Start the web interface with:
+**c. Start the web interface with**
 ```bash
 streamlit run app/app.py
 ```
 This command will open a new browser tab with the app interface.
 
 
-**d. Create distractors
+**d. Create distractors**
 ```
 In the browser tab, load a domain CSV (e.g., insurance.csv).
 Click “🎲 Generate Random Scenario” to view a random example.
@@ -56,7 +56,7 @@ Type your distractor in the provided text box.
 Press “💾 Save Distractor” to save it.
 ```
 
-**e. Save results:
+**e. Save results**
 Each saved distractor is appended as a new row in:
 ```bash
 data/distractors/<domain>.csv
