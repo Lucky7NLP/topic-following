@@ -7,7 +7,7 @@ This project was developed for the **NLP/DL course**.
 
 ## 🧩 Current Directory Structure
 
-
+```
 topic-following/
 │
 ├── app/
@@ -25,6 +25,7 @@ topic-following/
 │
 ├── requirements.txt
 └── README.md
+```
 
 ## 🛠️ Setup Instructions
 
@@ -47,11 +48,13 @@ This command will open a new browser tab with the app interface.
 
 
 **d. Create distractors
+```
 In the browser tab, load a domain CSV (e.g., insurance.csv).
 Click “🎲 Generate Random Scenario” to view a random example.
 Review the domain, scenario, system instruction, and conversation.
 Type your distractor in the provided text box.
 Press “💾 Save Distractor” to save it.
+```
 
 **e. Save results:
 Each saved distractor is appended as a new row in:
