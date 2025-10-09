@@ -77,15 +77,44 @@ def ensure_data_dir(data_dir: str):
 def safe_append_row(path: str, row: dict, header_columns: List[str]):
     """
     Append a row to CSV creating the file with header if it doesn't exist.
-    Writes in UTF-8 with newline handling for cross-platform compatibility.
+    If the existing file's header is missing required columns, transparently
+    upgrades the file by rewriting the header and backfilling missing fields.
     """
     exists = os.path.exists(path)
-    # ensure all columns present (fill missing keys)
+
+    # Ensure payload has all declared columns
     payload = {col: row.get(col, "") for col in header_columns}
 
-    # write
+    if exists:
+        # Read current header
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            reader = csv.reader(f)
+            try:
+                current_header = next(reader)
+            except StopIteration:
+                current_header = []
+
+        # If header mismatch (missing columns or different order), migrate
+        if current_header != header_columns:
+            # Read all rows with DictReader using the old header
+            with open(path, "r", encoding="utf-8", newline="") as f_in:
+                old_reader = csv.DictReader(f_in)
+                old_rows = list(old_reader)
+
+            # Rewrite file with new header, map old rows to new schema
+            with open(path, "w", encoding="utf-8", newline="") as f_out:
+                writer = csv.DictWriter(f_out, fieldnames=header_columns)
+                writer.writeheader()
+                for old in old_rows:
+                    mapped = {col: old.get(col, "") for col in header_columns}
+                    writer.writerow(mapped)
+            # After migration, proceed to append the new row below
+
+    # Append (create if needed)
+    file_exists_after_maybe_migrate = os.path.exists(path)
     with open(path, "a", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=header_columns)
-        if not exists:
+        if not file_exists_after_maybe_migrate:
             writer.writeheader()
         writer.writerow(payload)
+
