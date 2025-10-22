@@ -12,12 +12,7 @@ def normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     Lowercase & underscore column names so we're robust to variations.
     """
     df = df.copy()
-    df.columns = (
-        df.columns
-        .str.strip()
-        .str.lower()
-        .str.replace(r"\s+", "_", regex=True)
-    )
+    df.columns = df.columns.str.strip().str.lower().str.replace(r"\s+", "_", regex=True)
     return df
 
 
@@ -117,4 +112,3 @@ def safe_append_row(path: str, row: dict, header_columns: List[str]):
         if not file_exists_after_maybe_migrate:
             writer.writeheader()
         writer.writerow(payload)
-

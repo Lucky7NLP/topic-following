@@ -1,5 +1,5 @@
 # app.py
-# Run with:  streamlit run app.py
+# Run with:  streamlit run app/app.py
 # Dependencies: pip install streamlit pandas
 
 import os
@@ -11,7 +11,12 @@ from typing import List, Dict, Optional
 import pandas as pd
 import streamlit as st
 
-from utils import normalize_headers, parse_conversation_any, ensure_data_dir, safe_append_row
+from utils import (
+    normalize_headers,
+    parse_conversation_any,
+    ensure_data_dir,
+    safe_append_row,
+)
 
 
 # -------------------------
@@ -19,7 +24,7 @@ from utils import normalize_headers, parse_conversation_any, ensure_data_dir, sa
 # -------------------------
 st.set_page_config(page_title="Distractor Builder", layout="wide")
 
-INPUT_DATA_DIR = "data"               # where domain CSVs live (loaded by you)
+INPUT_DATA_DIR = "data"  # where domain CSVs live (loaded by you)
 OUTPUT_DATA_DIR = "data/distractors"  # where distractors will be saved
 
 REQUIRED_CORE = ["domain", "scenario", "system_instruction", "conversation"]
@@ -31,10 +36,14 @@ REQUIRED_CORE = ["domain", "scenario", "system_instruction", "conversation"]
 def on_add_pair():
     bot = st.session_state.cur_bot.strip()
     dist = st.session_state.cur_dist.strip()
+    tgt = st.session_state.cur_tgt.strip()
     if bot and dist:
-        st.session_state.pairs.append({"bot turn": bot, "distractor": dist})
+        st.session_state.pairs.append(
+            {"bot turn": bot, "distractor": dist, "target_instruction": tgt}
+        )
         # mark to clear on next rerun *before* widgets instantiate
         st.session_state._clear_inputs = True
+
 
 def validate_columns(df: pd.DataFrame) -> Optional[str]:
     missing = [c for c in REQUIRED_CORE if c not in df.columns]
@@ -54,7 +63,9 @@ def render_conversation(conv_value):
     If parsing fails, prints raw text.
     """
     conv = parse_conversation_any(conv_value)
-    if isinstance(conv, list) and all(isinstance(x, dict) and "role" in x and "content" in x for x in conv):
+    if isinstance(conv, list) and all(
+        isinstance(x, dict) and "role" in x and "content" in x for x in conv
+    ):
         for turn in conv:
             role = str(turn.get("role", "user")).lower()
             role = "assistant" if role == "assistant" else "user"
@@ -77,10 +88,19 @@ def extract_last_assistant_turn(conv_value) -> str:
     return ""
 
 
-def save_distractor_row_multi(domain: str, src_row: dict, pairs: List[Dict[str, str]], target_sys_instr: str):
+def save_distractor_row_multi(
+    domain: str,
+    src_row: dict,
+    pairs: List[Dict[str, str]],
+    target_sys_instr_payload: str,
+):
     """
     Saves one row to data/distractors/<domain>.csv with a 'distractors' JSON array.
-    Each element in 'pairs' is: {"bot turn": "...", "distractor": "..."}.
+    Each element in 'pairs' is: {"bot turn": "...", "distractor": "...", "target_instruction": "..."}.
+
+    The 'target_system_instruction' column accepts either:
+      - a plain string (legacy), or
+      - a JSON array (list) aligned to the distractors order.
     """
     ensure_data_dir(OUTPUT_DATA_DIR)
     out_path = os.path.join(OUTPUT_DATA_DIR, f"{domain}.csv")
@@ -90,8 +110,10 @@ def save_distractor_row_multi(domain: str, src_row: dict, pairs: List[Dict[str, 
         "domain": src_row.get("domain", ""),
         "scenario": src_row.get("scenario", ""),
         "system_instruction": src_row.get("system_instruction", ""),
-        "target_system_instruction": target_sys_instr.strip(),
-        "conversation_json": json.dumps(parse_conversation_any(src_row.get("conversation", "")), ensure_ascii=False),
+        "target_system_instruction": target_sys_instr_payload.strip(),
+        "conversation_json": json.dumps(
+            parse_conversation_any(src_row.get("conversation", "")), ensure_ascii=False
+        ),
         "distractors": json.dumps(pairs, ensure_ascii=False),
     }
     safe_append_row(
@@ -120,8 +142,6 @@ if "current_idx" not in st.session_state:
 if "last_saved" not in st.session_state:
     st.session_state.last_saved = None
 
-
-
 # builder state
 if "pairs" not in st.session_state:
     st.session_state.pairs = []
@@ -129,10 +149,12 @@ if "cur_bot" not in st.session_state:
     st.session_state.cur_bot = ""
 if "cur_dist" not in st.session_state:
     st.session_state.cur_dist = ""
+if "cur_tgt" not in st.session_state:
+    st.session_state.cur_tgt = ""  # NEW: per-pair target instruction(s)
+
 # NEW: control flags
 if "_clear_inputs" not in st.session_state:
     st.session_state._clear_inputs = False
-
 
 
 # -------------------------
@@ -172,20 +194,22 @@ if st.session_state.dataset_df is None:
     st.info("Upload a CSV to get started.")
     st.stop()
 
-col1, col2, col3 = st.columns([1, 1, 1])
+# --- Scenario picker row ---
+col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
 
 with col1:
-    if st.button("🎲 Generate Random Scenario", use_container_width=True):
+    if st.button("🎲 Random Scenario", use_container_width=True):
         st.session_state.current_idx = select_random_index(st.session_state.dataset_df)
         st.session_state.last_saved = None
         # Reset builder state for a fresh sample
         st.session_state.pairs = []
         st.session_state.cur_bot = ""
         st.session_state.cur_dist = ""
+        st.session_state.cur_tgt = ""
 
 with col2:
     seed = st.number_input(
-        "Optional random seed",
+        "Optional seed",
         min_value=0,
         value=0,
         step=1,
@@ -195,18 +219,36 @@ with col2:
         random.seed(int(seed))
 
 with col3:
+    # NEW: choose exact row index to load
+    max_idx = len(st.session_state.dataset_df) - 1
+    chosen_idx = st.number_input(
+        "Row index",
+        min_value=0,
+        max_value=max_idx,
+        value=0,
+        step=1,
+        help=f"Choose an exact row (0..{max_idx}) to build distractors for.",
+    )
+with col4:
     st.write("")
-    st.caption("Tip: Click the dice again to get another example.")
+    if st.button("📌 Load by Index", use_container_width=True):
+        st.session_state.current_idx = int(chosen_idx)
+        st.session_state.last_saved = None
+        # Reset builder state for a fresh sample
+        st.session_state.pairs = []
+        st.session_state.cur_bot = ""
+        st.session_state.cur_dist = ""
+        st.session_state.cur_tgt = ""
 
 if st.session_state.current_idx is None:
-    st.warning("Click **Generate Random Scenario** to begin.")
+    st.warning("Pick a random scenario or load by index to begin.")
     st.stop()
 
 row = st.session_state.dataset_df.loc[st.session_state.current_idx]
 domain = str(row.get("domain", "")).strip() or "unknown"
 
 # Scenario + instructions
-st.subheader(f"Domain: `{domain}`")
+st.subheader(f"Domain: `{domain}`  •  Row: {st.session_state.current_idx}")
 with st.expander("Scenario", expanded=True):
     st.write(row.get("scenario", ""))
 
@@ -223,14 +265,19 @@ st.markdown("### Build distractor pairs")
 prefill_col1, prefill_col2 = st.columns([1, 2])
 with prefill_col1:
     if st.button("↪️ Prefill Bot Turn from last assistant"):
-        st.session_state.cur_bot = extract_last_assistant_turn(row.get("conversation", ""))
+        st.session_state.cur_bot = extract_last_assistant_turn(
+            row.get("conversation", "")
+        )
 with prefill_col2:
-    st.caption("Quickly grabs the last assistant message from this conversation as your starting 'Bot Turn'.")
+    st.caption(
+        "Quickly grabs the last assistant message from this conversation as your starting 'Bot Turn'."
+    )
 
 # Ensure we clear AFTER a previous click but BEFORE widgets are drawn this run
 if st.session_state._clear_inputs:
     st.session_state.cur_bot = ""
     st.session_state.cur_dist = ""
+    st.session_state.cur_tgt = ""
     st.session_state._clear_inputs = False
 
 st.text_area(
@@ -247,12 +294,31 @@ st.text_area(
     placeholder="Write a distractor that plausibly follows but deviates from the target instruction.",
 )
 
+# NEW: per-pair target instruction(s)
+st.text_area(
+    "Target instruction(s) this distractor attempts to break (free text or JSON list)",
+    key="cur_tgt",
+    height=120,
+    placeholder='Example: "Do not reveal private user data" OR ["do not use tools","never browse"].',
+)
+
 add_col1, add_col2, add_col3 = st.columns([1, 1, 3])
 with add_col1:
-    add_disabled = not (st.session_state.cur_bot.strip() and st.session_state.cur_dist.strip())
-    st.button("➕ Add pair", disabled=add_disabled, use_container_width=True, on_click=on_add_pair)
+    add_disabled = not (
+        st.session_state.cur_bot.strip() and st.session_state.cur_dist.strip()
+    )
+    st.button(
+        "➕ Add pair",
+        disabled=add_disabled,
+        use_container_width=True,
+        on_click=on_add_pair,
+    )
 with add_col2:
-    if st.button("🧹 Clear all pairs", use_container_width=True, disabled=len(st.session_state.pairs) == 0):
+    if st.button(
+        "🧹 Clear all pairs",
+        use_container_width=True,
+        disabled=len(st.session_state.pairs) == 0,
+    ):
         st.session_state.pairs = []
 
 # Show current pairs with remove buttons
@@ -260,8 +326,13 @@ if len(st.session_state.pairs) > 0:
     st.markdown("#### Current pairs")
     for i, pair in enumerate(st.session_state.pairs):
         with st.expander(f"Pair {i+1}", expanded=False):
-            st.markdown(f"**Bot Turn**\n\n{pair['bot turn']}")
-            st.markdown(f"**Distractor**\n\n{pair['distractor']}")
+            st.markdown(f"**Bot Turn**\n\n{pair.get('bot turn','')}")
+            st.markdown(f"**Distractor**\n\n{pair.get('distractor','')}")
+            ti = pair.get("target_instruction", "")
+            if ti:
+                st.markdown(f"**Target instruction(s) for this distractor**\n\n{ti}")
+            else:
+                st.caption("_No per-pair target instruction provided._")
             if st.button(f"❌ Remove pair {i+1}", key=f"remove_{i}"):
                 st.session_state.pairs.pop(i)
                 st.experimental_rerun()
@@ -269,21 +340,49 @@ else:
     st.info("No pairs yet. Add your first one above.")
 
 st.markdown("---")
-st.markdown("### Target System Instruction (paste the exact instruction you want to deviate from)")
-target_sys_instr = st.text_area(
-    "Target System Instruction",
+
+# Global target instruction (optional, kept for compatibility)
+st.markdown("### Global Target System Instruction (optional)")
+st.caption(
+    "If you fill per-pair targets above, the CSV will save a JSON list aligned with pairs in the "
+    "`target_system_instruction` column. If you leave per-pair targets empty, this global text will be saved instead."
+)
+target_sys_instr_global = st.text_area(
+    "Global Target System Instruction (fallback)",
     value=str(row.get("system_instruction", "")),
-    height=120,
-    placeholder="Paste the exact system prompt you're testing against...",
+    height=100,
+    placeholder="Paste a single system prompt to test against (legacy mode).",
 )
 
 # --------------- Save ---------------
 save_col1, save_col2 = st.columns([1, 2])
 with save_col1:
-    can_save = bool(target_sys_instr.strip()) and len(st.session_state.pairs) > 0
-    if st.button("💾 Save Distractors", type="primary", use_container_width=True, disabled=not can_save):
+    can_save = len(st.session_state.pairs) > 0
+    if st.button(
+        "💾 Save Distractors",
+        type="primary",
+        use_container_width=True,
+        disabled=not can_save,
+    ):
         try:
-            out_path = save_distractor_row_multi(domain, row.to_dict(), st.session_state.pairs, target_sys_instr)
+            # Build payload for `target_system_instruction` column:
+            # - If any per-pair targets given, store a JSON list aligned to pairs.
+            # - Otherwise, store the global text (legacy behavior).
+            per_pair_targets: List[str] = [
+                p.get("target_instruction", "").strip() for p in st.session_state.pairs
+            ]
+            has_any_per_pair = any(bool(x) for x in per_pair_targets)
+            if has_any_per_pair:
+                target_payload = json.dumps(per_pair_targets, ensure_ascii=False)
+            else:
+                target_payload = target_sys_instr_global.strip()
+
+            out_path = save_distractor_row_multi(
+                domain=domain,
+                src_row=row.to_dict(),
+                pairs=st.session_state.pairs,
+                target_sys_instr_payload=target_payload,
+            )
             st.session_state.last_saved = time.time()
             st.success(f"Saved to `{out_path}`")
         except Exception as e:
@@ -294,5 +393,6 @@ with save_col2:
         st.caption("Last save just now ✅")
 
 st.markdown("---")
-st.caption("Distractors are saved per domain in `data/distractors/` (created automatically).")
-
+st.caption(
+    "Distractors are saved per domain in `data/distractors/` (created automatically)."
+)
