@@ -50,9 +50,10 @@ This command will open a new browser tab with the app interface.
 **d. Create distractors**
 ```
 In the browser tab, load a domain CSV (e.g., insurance.csv).
-Click “🎲 Generate Random Scenario” to view a random example.
+Click “Random Scenario” to view a random example or "Load by Index" to select in order (index starts from 0)
 Review the domain, scenario, system instruction, and conversation.
 Type your distractor in the provided text box.
+Type the target instruction you want to violated in the next.
 Press “💾 Save Distractor” to save it.
 ```
 
