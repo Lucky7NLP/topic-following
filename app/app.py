@@ -87,8 +87,9 @@ def extract_last_assistant_turn(conv_value) -> str:
                 return str(turn.get("content", "")).strip()
     return ""
 
+
 def save_distractor_row_multi(domain, src_row, pairs, target_sys_instr_payload):
-    """ Save a row with multiple distractor pairs to the domain-specific CSV."""
+    """Save a row with multiple distractor pairs to the domain-specific CSV."""
     ensure_data_dir(OUTPUT_DATA_DIR)
     out_path = os.path.join(OUTPUT_DATA_DIR, f"{domain}.csv")
 
