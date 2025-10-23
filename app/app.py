@@ -87,23 +87,16 @@ def extract_last_assistant_turn(conv_value) -> str:
                 return str(turn.get("content", "")).strip()
     return ""
 
-
-def save_distractor_row_multi(
-    domain: str,
-    src_row: dict,
-    pairs: List[Dict[str, str]],
-    target_sys_instr_payload: str,
-):
-    """
-    Saves one row to data/distractors/<domain>.csv with a 'distractors' JSON array.
-    Each element in 'pairs' is: {"bot turn": "...", "distractor": "...", "target_instruction": "..."}.
-
-    The 'target_system_instruction' column accepts either:
-      - a plain string (legacy), or
-      - a JSON array (list) aligned to the distractors order.
-    """
+def save_distractor_row_multi(domain, src_row, pairs, target_sys_instr_payload):
+    """ Save a row with multiple distractor pairs to the domain-specific CSV."""
     ensure_data_dir(OUTPUT_DATA_DIR)
     out_path = os.path.join(OUTPUT_DATA_DIR, f"{domain}.csv")
+
+    # Strip target_instruction before writing
+    pairs_clean = [
+        {"bot turn": p.get("bot turn", ""), "distractor": p.get("distractor", "")}
+        for p in pairs
+    ]
 
     record = {
         "timestamp": pd.Timestamp.utcnow().isoformat(),
@@ -114,7 +107,7 @@ def save_distractor_row_multi(
         "conversation_json": json.dumps(
             parse_conversation_any(src_row.get("conversation", "")), ensure_ascii=False
         ),
-        "distractors": json.dumps(pairs, ensure_ascii=False),
+        "distractors": json.dumps(pairs_clean, ensure_ascii=False),
     }
     safe_append_row(
         out_path,
