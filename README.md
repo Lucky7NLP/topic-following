@@ -18,6 +18,8 @@ topic-following/
 │ └── final/ # Contains csv's with our group's distractors
 │ └── group7_combined_data.csv # Quality control on the other group's distractors
 │
+├── documents/ # Contains personal notes & meeting notes
+│
 ├── src/
 │ └── get_csv.py # Script to download or generate CSV domain data
 │ └── utils.py
