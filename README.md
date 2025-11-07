@@ -2,6 +2,7 @@
 
 Our **Topic-Following** project follows the "CantTalkAboutThis: Aligning Language Models to Stay on Topic in Dialogues" paper.
 This project was developed for the **NLP/DL course**.
+This repository consists of an app for distractor creation upon the original dataset, and several files that include our annotation process as a group, along with the quality control we performed in 20 distinct scenarios randomly sampled from the other group's annotation pool.
 
 ---
 
@@ -12,6 +13,10 @@ topic-following/
 │
 ├── app/
 │ └── app.py # Streamlit interface
+│
+│── dataset/
+│ └── final/ # Contains csv's with our group's distractors
+│ └── group7_combined_data.csv # Quality control on the other group's distractors
 │
 ├── src/
 │ └── get_csv.py # Script to download or generate CSV domain data
@@ -27,7 +32,7 @@ topic-following/
 └── README.md
 ```
 
-## 🛠️ Setup Instructions
+## 🛠️ Setup Instructions (for the app)
 
 **a. Install dependencies**  
 Install all required Python packages using:
