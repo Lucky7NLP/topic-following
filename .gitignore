@@ -210,5 +210,4 @@ __marimo__/
 
 # Repo related
 data/
-*.csv
 .DS_Store
