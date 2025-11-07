@@ -14,7 +14,7 @@ topic-following/
 ├── app/
 │ └── app.py # Streamlit interface
 │
-│── dataset/
+│── dataset/ # OUR WORK
 │ └── final/ # Contains csv's with our group's distractors
 │ └── group7_combined_data.csv # Quality control on the other group's distractors
 │
@@ -24,7 +24,7 @@ topic-following/
 │ └── get_csv.py # Script to download or generate CSV domain data
 │ └── utils.py
 │
-├── data/
+├── data/ # Csv files from ORIGINAL dataset
 │ ├── real_estate.csv # Domain dataset
 │ ├── insurance.csv
 │ ├── travel.csv
